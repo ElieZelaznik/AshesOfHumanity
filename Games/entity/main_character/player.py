@@ -13,10 +13,10 @@ ANIMATIONS_DATA = {
 
 # Configuration des touches
 KEY_MAPPING = {
-    pygame.K_RIGHT: {"anim": "run",  "dx":  5, "dy":  0, "flip": False},
-    pygame.K_LEFT:  {"anim": "run",  "dx": -5, "dy":  0, "flip": True},
-    pygame.K_UP:    {"anim": "jump", "dx":  0, "dy": -5, "flip": False},
-    pygame.K_DOWN:  {"anim": "jump", "dx":  0, "dy":  5, "flip": False},
+    pygame.K_d: {"anim": "run",  "dx":  5, "dy":  0, "flip": False},
+    pygame.K_q:  {"anim": "run",  "dx": -5, "dy":  0, "flip": True},
+    pygame.K_z:    {"anim": "jump", "dx":  0, "dy": -5, "flip": False},
+    pygame.K_s:  {"anim": "jump", "dx":  0, "dy":  5, "flip": False},
 }
 
 class Player(pygame.sprite.Sprite):
