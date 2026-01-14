@@ -53,7 +53,7 @@ class Player(pygame.sprite.Sprite):
         
         #creation d'une liste qui stocke les rectangle de collision
         self.walls = []
-        self.tmx_data = load_pygame('games/ressource/map/map.tmx')
+        self.tmx_data = load_pygame('Games/ressource/map/map.tmx')
 
         for obj in self.tmx_data.objects:
             if obj.name == "collision":
