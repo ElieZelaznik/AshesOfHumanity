@@ -1,4 +1,5 @@
 import pygame
+from pytmx.util_pygame import load_pygame
 
 # --- CONFIGURATION ---
 
@@ -19,6 +20,7 @@ KEY_MAPPING = {
     pygame.K_s: {"anim": "jump", "dx":  0, "dy":  5, "flip": False},
 }
 
+
 class Player(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super().__init__()
@@ -34,9 +36,32 @@ class Player(pygame.sprite.Sprite):
         self.rect = self.image.get_rect(topleft=(x, y))
         self.flip = False
         
+
+        #definir la hitbox sur les pied du joueur
+        hitbox_width = self.rect.width // 4               #largeur
+        hitbox_height = 20                                #hauteur
+        hitbox_x = self.rect.centerx - hitbox_width // 2  # centrer sur les pieds
+        hitbox_y = self.rect.bottom - hitbox_height       # placer au bas du joueur
+
+
+
+        self.hitbox = pygame.Rect(hitbox_x, hitbox_y,hitbox_width,hitbox_height)
+
         # Timer d'animation
         self.animation_speed = ANIMATIONS_DATA["idle"]["speed"]
         self.timer = 0
+        
+        #creation d'une liste qui stocke les rectangle de collision
+        self.walls = []
+        self.tmx_data = load_pygame('games/ressource/map/map.tmx')
+
+        for obj in self.tmx_data.objects:
+            if obj.name == "collision":
+                rect = pygame.Rect(obj.x, obj.y, obj.width, obj.height)
+                self.walls.append(rect)
+
+        
+
 
     def load_images(self):
         """Charge les Sprite Sheets et les découpe proprement"""
@@ -75,13 +100,15 @@ class Player(pygame.sprite.Sprite):
     def get_input(self):
         """Gestion des entrées clavier via le dictionnaire de config"""
         keys = pygame.key.get_pressed()
+        dx = 0
+        dy = 0
         action_triggered = False
 
         for key, data in KEY_MAPPING.items():
             if keys[key]:
                 # Mouvement
-                self.rect.x += data["dx"]
-                self.rect.y += data["dy"]
+                dx += data["dx"]
+                dy += data["dy"]
 
                 # Orientation (Flip)
                 self.flip = data["flip"]
@@ -103,6 +130,30 @@ class Player(pygame.sprite.Sprite):
                 self.current_action = "idle"
                 self.frame_index = 0
                 self.animation_speed = ANIMATIONS_DATA["idle"]["speed"]
+        
+        self.move(dx, dy)
+    
+    def move(self, dx, dy):
+        # --- X ---
+        self.hitbox.x += dx
+        for wall in self.walls:
+            if self.hitbox.colliderect(wall):
+                if dx > 0:
+                    self.hitbox.right = wall.left
+                elif dx < 0:
+                    self.hitbox.left = wall.right
+
+        # --- Y ---
+        self.hitbox.y += dy
+        for wall in self.walls:
+            if self.hitbox.colliderect(wall):
+                if dy > 0:
+                    self.hitbox.bottom = wall.top
+                elif dy < 0:
+                    self.hitbox.top = wall.bottom
+        
+        self.rect.midbottom = self.hitbox.midbottom
+
 
     def animate(self):
         """Fait défiler les images"""

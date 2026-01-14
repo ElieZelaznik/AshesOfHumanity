@@ -1,5 +1,7 @@
 import pygame
 import sys # Ajouté pour quitter proprement
+import pyscroll
+import pytmx
 from Games.map.importmap import GameMap
 from Games.entity.main_character.player import Player # Ton import
 
@@ -18,10 +20,11 @@ clock = pygame.time.Clock()
 # --- CREATION DU JOUEUR ET DU GROUPE ---
 # Note : Ces lignes doivent être collées au bord gauche (pas d'espace au début)
 print("Création du joueur...") # Debug : on vérifie que cette ligne s'exécute
-player = Player(400, 300)
-player_group = pygame.sprite.Group()
-player_group.add(player)
+player = Player(14192, 13349) #coordonné du spawn du joueur
+player.walls = gamemap.walls
+gamemap.group.add(player)
 print("Joueur créé et ajouté au groupe !") # Debug
+print(player.image.get_size())
 
 running = True
 
@@ -35,16 +38,18 @@ while running:
             running = False
 
     # 2. Mise à jour (Update)
-    player_group.update() # Le joueur calcule ses mouvements
-    
+    gamemap.group.update()
+
+
     # 3. Dessin (Draw)
     screen.fill((0, 0, 0)) # Fond noir pour nettoyer l'écran
+    gamemap.group.center(player.rect.center)
+    gamemap.render(screen, player.rect.center) #la camera suit le joueur
+    gamemap.group.draw(screen)
     
     # D'abord la map (fond)
-    gamemap.render(screen, (1084, 800))
     
     # Ensuite le joueur (par dessus)
-    player_group.draw(screen)
 
     # Rafraichissement final
     pygame.display.flip()
