@@ -7,17 +7,39 @@ from pytmx.util_pygame import load_pygame
 DOSSIER_IMG = "Games/entity/main_character/animations/"
 
 ANIMATIONS_DATA = {
-    "idle": { "file": "Idle.png", "count": 6, "speed": 0.1 },
-    "run":  { "file": "Run.png",  "count": 10, "speed": 0.2 },
-    "jump": { "file": "Jump.png", "count": 10, "speed": 0.1 },
+    "idle": { "file": "Idle.png", "count": 6, "speed": 0.1, "mode": "loop" },
+    "run":  { "file": "Run.png",  "count": 10, "speed": 0.2, "mode": "loop" },
+    "jump": { "file": "Jump.png", "count": 10, "speed": 0.1, "mode": "once" },
+    "attack": { "file": "Attack_1.png", "count": 3, "speed": 0.1, "mode": "once" },
+    "dead": { "file": "Dead.png", "count": 5, "speed": 0.1, "mode": "once" },
+    "recharge": { "file": "Recharge.png", "count": 17, "speed": 0.1, "mode": "once" },
+    "shoot": { "file": "Shot.png", "count": 4, "speed": 0.1, "mode": "once" },
+    "shoot_3_loop": { "file": "Shot.png", "count": 4, "speed": 0.1, "mode": "combo" },
 }
 
 # Configuration des touches
 KEY_MAPPING = {
-    pygame.K_d: {"anim": "run",  "dx":  5, "dy":  0, "flip": False},
-    pygame.K_q: {"anim": "run",  "dx": -5, "dy":  0, "flip": True},
-    pygame.K_z: {"anim": "jump", "dx":  0, "dy": -5, "flip": False},
-    pygame.K_s: {"anim": "jump", "dx":  0, "dy":  5, "flip": False},
+    # --- DÉPLACEMENTS (ZQSD) ---
+    # Tout le monde est en "run" maintenant pour marcher normalement
+    pygame.K_d: {"anim": "run", "dx":  5, "dy":  0, "flip": False},
+    pygame.K_q: {"anim": "run", "dx": -5, "dy":  0, "flip": True},
+    pygame.K_z: {"anim": "run", "dx":  0, "dy": -5, "flip": None}, # Modifié : jump -> run
+    pygame.K_s: {"anim": "run", "dx":  0, "dy":  5, "flip": None}, # Modifié : jump -> run
+
+    # --- ACTIONS (Mode "Once" / Bloquant) ---
+    
+    # SAUT (ESPACE) : Le saut se fait sur place (dx=0, dy=0)
+    # Note : Avec ton système actuel, le joueur ne pourra pas bouger PENDANT le saut
+    pygame.K_SPACE: {"anim": "jump",   "dx": 0, "dy": 0, "flip": None},
+
+    # ATTAQUE (Touche E)
+    pygame.K_e:     {"anim": "attack", "dx": 0, "dy": 0, "flip": None},
+
+    # AUTRES ACTIONS
+    pygame.K_r:     {"anim": "recharge",     "dx": 0, "dy": 0, "flip": None},
+    pygame.K_f:     {"anim": "shoot",        "dx": 0, "dy": 0, "flip": None},
+    pygame.K_c:     {"anim": "shoot_3_loop", "dx": 0, "dy": 0, "flip": None},
+    pygame.K_k:     {"anim": "dead",         "dx": 0, "dy": 0, "flip": None},
 }
 
 
@@ -30,6 +52,7 @@ class Player(pygame.sprite.Sprite):
         self.load_images()
 
         # État initial
+        self.is_busy = False
         self.current_action = "idle"
         self.frame_index = 0
         self.image = self.animations[self.current_action][0]
@@ -99,30 +122,55 @@ class Player(pygame.sprite.Sprite):
 
     def get_input(self):
         """Gestion des entrées clavier via le dictionnaire de config"""
+        
+        # 1. SI ON EST OCCUPÉ, ON NE FAIT RIEN (Verrouillage)
+        if self.is_busy:
+            return
+        
         keys = pygame.key.get_pressed()
-        dx = 0
-        dy = 0
         action_triggered = False
+
+        # On initialise le mouvement voulu à 0 pour ce tour de boucle
+        movement_x = 0
+        movement_y = 0
 
         for key, data in KEY_MAPPING.items():
             if keys[key]:
-                # Mouvement
-                dx += data["dx"]
-                dy += data["dy"]
+                
+                # --- A. GESTION INTELLIGENTE DE L'ORIENTATION ---
+                # Si flip est None, on ne touche à rien (on garde l'ancien flip)
+                if data["flip"] is not None:
+                    self.flip = data["flip"]
+                
+                target_anim_mode = ANIMATIONS_DATA[data["anim"]].get("mode", "loop")
 
-                # Orientation (Flip)
-                self.flip = data["flip"]
-
-                # Changement d'animation si nécessaire
-                if self.current_action != data["anim"]:
+                # --- B. CAS ACTIONS BLOQUANTES ---
+                if target_anim_mode in ["once", "combo"]:
                     self.current_action = data["anim"]
+                    self.is_busy = True 
                     self.frame_index = 0
                     self.animation_speed = ANIMATIONS_DATA[data["anim"]]["speed"]
-                
-                action_triggered = True
-                # On arrête de vérifier les autres touches (priorité à la première trouvée)
-                # Enlève le break si tu veux gérer les diagonales parfaitement
-                # break 
+                    
+                    if target_anim_mode == "combo":
+                        self.repeat_counter = 3
+                    
+                    action_triggered = True
+                    return 
+
+                # --- C. CAS MOUVEMENTS ---
+                else:
+                    movement_x += data["dx"]
+                    movement_y += data["dy"]
+
+                    if self.current_action != data["anim"]:
+                        self.current_action = data["anim"]
+                        self.frame_index = 0
+                        self.animation_speed = ANIMATIONS_DATA[data["anim"]]["speed"]
+                    
+                    action_triggered = True
+                    
+                    # --- D. LE BREAK (DIAGONALES) ---
+                    # break # (Optionnel pour les diagonales)
         
         # Retour au repos si aucune touche n'est active
         if not action_triggered:
@@ -131,7 +179,9 @@ class Player(pygame.sprite.Sprite):
                 self.frame_index = 0
                 self.animation_speed = ANIMATIONS_DATA["idle"]["speed"]
         
-        self.move(dx, dy)
+        # 2. APPLICATION DU MOUVEMENT ET DES COLLISIONS
+        # C'est ici qu'on utilise nos variables accumulées
+        self.move(movement_x, movement_y)
     
     def move(self, dx, dy):
         # --- X ---
@@ -159,16 +209,44 @@ class Player(pygame.sprite.Sprite):
         """Fait défiler les images"""
         self.timer += self.animation_speed
         
+        # 1. On attend que le timer soit rempli pour changer d'image
         if self.timer >= 1:
             self.timer = 0
             self.frame_index += 1
             
-            # Boucle l'animation
+            # On récupère les infos de l'animation en cours
+            current_anim_data = ANIMATIONS_DATA[self.current_action]
             frames_count = len(self.animations[self.current_action])
+            mode = current_anim_data.get("mode", "loop")
+            
+            # 2. FIN DE L'ANIMATION (On a dépassé la dernière image)
             if self.frame_index >= frames_count:
-                self.frame_index = 0
+                
+                # CAS A : C'est une boucle infinie (Idle, Run)
+                if mode == "loop":
+                    self.frame_index = 0 # On recommence au début
+                
+                # CAS B : C'est un combo (répétition X fois)
+                elif mode == "combo":
+                    if self.repeat_counter > 0:
+                        self.repeat_counter -= 1 # On décompte une fois
+                        self.frame_index = 0     # On relance l'anim
+                    else:
+                        # Compteur fini : On libère le joueur
+                        self.is_busy = False
+                        self.current_action = "idle"
+                        self.frame_index = 0
+                        self.animation_speed = ANIMATIONS_DATA["idle"]["speed"]
 
-        # Mise à jour de l'image
+                # CAS C : C'est une action unique (Once) - (Attack, Dead, etc.)
+                else:
+                    self.is_busy = False # LIBÉRÉ !
+                    self.current_action = "idle" # Retour force au repos
+                    self.frame_index = 0
+                    self.animation_speed = ANIMATIONS_DATA["idle"]["speed"]
+
+        # 3. MISE A JOUR GRAPHIQUE
+        # C'est ici que le 'flip' décidé dans get_input s'applique visuellement
         current_img = self.animations[self.current_action][int(self.frame_index)]
         
         if self.flip:
