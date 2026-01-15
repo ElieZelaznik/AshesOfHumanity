@@ -21,7 +21,6 @@ clock = pygame.time.Clock()
 # Note : Ces lignes doivent être collées au bord gauche (pas d'espace au début)
 print("Création du joueur...") # Debug : on vérifie que cette ligne s'exécute
 player = Player(14192, 13349) #coordonné du spawn du joueur
-player.walls = gamemap.walls
 gamemap.group.add(player)
 print("Joueur créé et ajouté au groupe !") # Debug
 print(player.image.get_size())
